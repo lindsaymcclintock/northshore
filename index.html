@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+ <html>
+  <head>
+    <!-- meta for the browser to allow for mobile first design-->
+    <meta charset="utf-8" />
+    <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no" />
+
+    <title>North Shore Explorer</title>
+
+    <style>
+      html,
+      body,
+      #viewDiv {
+       padding: 0;
+       margin: 0;
+       height: 100%;
+       width: 100%;
+      }
+
+      a{
+        text-decoration:none;
+        color: white;
+      }
+
+      #titleDiv {
+        padding: 10px;
+        background-color: #70c4a7;
+      }
+     
+
+      #buttonText{
+        font-size: 13pt;
+        font-style: bold;
+        padding: 5px;
+        color: white;
+      }
+
+      #titleText {
+        font-size: 22pt;
+        font-style: bold;
+        padding: 10px;
+        color: white;
+        text-align: center;
+      }
+
+      #subtitle {
+        font-style: italic;
+        text-align: center;
+        color: white;
+      }
+
+     
+    
+     </style>
+
+    <!--importing the css and libraries for esri.js-->
+    <link rel="stylesheet" href="https://js.arcgis.com/4.26/esri/themes/light/main.css" />
+    <script src="https://js.arcgis.com/4.26/"></script>
+
+    <!-- loading the modules -->
+    <script>
+        require(["esri/config", 
+          "esri/Map",
+          "esri/views/MapView",
+          "esri/widgets/Search",
+          "esri/layers/FeatureLayer",
+          "esri/widgets/Expand",
+          "esri/Basemap", //added to access outdoor basemap
+          "esri/widgets/BasemapGallery",
+          "esri/widgets/Legend",
+          "esri/portal/PortalItem", //add basemap by portal id
+          "esri/PopupTemplate",
+          "esri/widgets/Editor"
+        ],
+          (esriConfig, Map, MapView, Search, FeatureLayer, Expand, Basemap, BasemapGallery, Legend, PortalItem, PopupTemplate, Editor) => {
+
+        //adding API Key
+        esriConfig.apiKey = "AAPTxy8BH1VEsoebNVZXo8HurM9-pAcf23W5yt8y2jTB2KTwD4hT3CaM8-Mvb-G6W0-FCIHI4Wka056s_pUQ2ydfZdFG8EJUmjP3omCc2oKpeRV-X10tP1JqRj-U-YNLWQy1FS6P5-W1g8XYy4GH7VM3q97wReYDswJyRR0c1aSMR2L_5zznt-aKedxSLVDlQRwH0Kimx9mLZQ2uOZKG38W0p2xf9v1d4xjvHnF-cpeqReIJtHnc0ZCo--7fZCo809bGAT1_0VZxzgI2";
+
+        //add outdoor basemap using portal ID
+        const basemap = new Basemap({
+            portalItem: {
+                id: "f35ef07c9ed24020aadd65c8a65d3754"
+            }
+        });
+
+        const map = new Map({
+            basemap: basemap
+        });
+
+        const view = new MapView({
+            container: "viewDiv", //Reference to DOM node that will contain the view
+            map: map, //References the map object
+            center: [-91.03310490722528, 47.503043679190384],
+            zoom: 9
+        });
+
+       
+        //add search widget
+        const searchWidget = new Search({
+            view:view
+        });
+
+        const searchExpand = new Expand({
+            view: view,
+            content: searchWidget
+        });
+
+        //add search widget to top left corner
+        view.ui.add(searchExpand, "top-left");
+
+
+        //create basemap gallery with default esri basemaps
+        const basemapGallery = new BasemapGallery({
+            view: view
+        });
+
+        // Expand widget to show and hide the Basemap Gallery
+        const bgexpand = new Expand({
+            view: view,
+            content: basemapGallery,
+            index: 2
+            
+        });
+      
+        // Add Expand widget to the bottom-right corner
+        view.ui.add(bgexpand, "bottom-right");
+
+
+        //create renderer for state parks layer
+        const parksRenderer = {
+            "type": "simple",
+            "symbol" : {
+                "type": "simple-fill",
+                "color": "rgba(119, 196, 112, 0.3)",
+                "outline": null,
+                }
+        };
+
+          
+        //add WI counties layer
+        const parksLayer = new FeatureLayer({
+            url: "https://arcgis.dnr.state.mn.us/host/rest/services/Hosted/Minnesota_State_Parks_Recreation_Areas_Waysides/FeatureServer/1",
+            renderer: parksRenderer,
+            title: "State Parks & Waysides"
+          
+        });
+
+        map.add(parksLayer);
+
+
+        //create renderer for deer management zones layer
+        const trailsRenderer = {
+            "type" : "simple",
+            "symbol" : {
+                "type" : "simple-line",
+                "color" : "rgba(115, 112, 196, 0.8)",
+                "style" : "solid",
+                "width" : 1.5,
+                "join" : "round"
+            }
+        };
+        
+
+        //add state trails layer
+        const trailsLayer = new FeatureLayer({
+            url: "https://arcgis.dnr.state.mn.us/mndnr/rest/services/slam/SLAM_App_Layers/MapServer/80",
+            renderer: trailsRenderer,
+            title: "State Trails"
+        });
+
+        //create popupTemplate for trails layer
+        trailsLayer.popupTemplate = {
+            title: "{trail_name}"};
+
+        map.add(trailsLayer);
+
+        //create renderer for sites layer 
+        const sitesRenderer = {
+            "type": "unique-value",
+            "legendOptions": {
+                "title": "North Shore Attractions" //title for legend
+            },
+            "field" : "Category", //use zones for unique value polygon fills
+            "uniqueValueInfos" :[{
+                "value" : "Good Food", //create label used in legend
+                "symbol" : {
+                    "type": "simple-marker",
+                    "color": "rgb(78, 175, 186)",
+                    "outline": {
+                        "color" : "rgb(250, 250, 250)",
+                        "width": 1
+                    }
+                    }
+            },{
+                "value" : "Scenic View",
+                "symbol" : {
+                    "type": "simple-marker",
+                    "color": "rgb(196, 112, 134)",
+                    "outline": {
+                        "color" : "rgb(250, 250, 250)",
+                        "width": 1
+                    }
+                    }
+            },{
+                "value" : "Rock Beach",
+                "symbol" : {
+                    "type": "simple-marker",
+                    "color": "rgb(186, 186, 78)",
+                    "outline": {
+                        "color" : "rgb(250, 250, 250)",
+                        "width": 1
+                    }
+                    }
+            }]
+        };
+        
+        //create feature layer from ArcGIS layer
+        const layer = new FeatureLayer({
+            //URL to the service
+                url: "https://services.arcgis.com/HRPe58bUyBqyyiCt/arcgis/rest/services/NorthShore_Sites/FeatureServer",
+                renderer: sitesRenderer,
+                title: null
+                
+            });
+            //create popupTemplate for results layer
+            layer.popupTemplate = {
+            title: "{Category}",
+            content: [
+                
+                {type: "text",
+                text: "{Activity}",
+                },
+                {type: "attachments"}, //add any photo attachments
+            ],
+           
+            lastEditInfoEnabled: false //removed editor info from bottom of popup
+            }
+        
+           
+            //add layer to map
+            map.add(layer);
+
+        
+        const editor = new Editor({
+            view: view,
+            layer: layer
+        });
+
+        const editorExpand = new Expand({
+            view: view,
+            expanded: true
+        });
+
+        //add search widget to top left corner
+        view.ui.add(editorExpand, "top-right");
+        
+
+    
+        //add legend
+        const legend = new Legend({
+            view: view
+        });
+
+        //Expand widget to show and hide Legend
+        const legendexpand = new Expand({
+            view: view,
+            content: legend,
+            expanded: true, //expand legend by default
+            mode: "floating", //widget will float regardless of browser size
+        });
+    
+      //add legend to bottom left corner of the view
+      view.ui.add(legendexpand, "bottom-left");
+
+      view.ui.add("titleDiv", { //add title to map
+        position: "top-left",
+        index: 0});
+
+      view.ui.add("buttonDiv",{ //add button under title
+        position: "top-left",
+        index: 1});  
+        });
+
+      
+      </script>
+
+  </head>
+  <body>
+    
+    <div id="viewDiv"></div>
+   
+    <div id="titleDiv" class="esri-widget"> <!--create title using esri widget class-->
+        <div id="titleText">North Shore Explorer</div>
+        <div id="subtitle">Find new places to explore and share your favorite North Shore activity.</div>
+      </div>
+
+  </body>
+</html>
